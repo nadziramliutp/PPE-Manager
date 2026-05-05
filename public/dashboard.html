@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HSE Dashboard — PPE System</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#111827" />
+</head>
+<body>
+  <div class="page" id="app">
+    <header class="header">
+      <div class="container header-inner">
+        <div>
+          <div class="header-title">HSE Dashboard</div>
+          <div style="font-size:11px;color:#9ca3af;">PPE Management System</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="low-stock-badge" class="badge badge-danger hidden"></span>
+          <button onclick="Session.clear();window.location.href='/index.html'" class="btn btn-outline btn-sm">Exit</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div id="main-tabs">
+      <div class="tabs container" style="padding-left:0;padding-right:0;">
+        <button class="tab-btn active" data-tab="tab-overview">Overview</button>
+        <button class="tab-btn" data-tab="tab-logs">Issue Log</button>
+        <button class="tab-btn" data-tab="tab-inventory">Inventory</button>
+        <button class="tab-btn" data-tab="tab-manage">Manage</button>
+      </div>
+
+      <div class="container" style="padding-top:24px;padding-bottom:40px;">
+
+        <!-- OVERVIEW TAB -->
+        <div class="tab-panel active" id="tab-overview">
+          <div class="stats-grid" style="margin-bottom:24px;">
+            <div class="stat-card"><div class="stat-label">Total Issued</div><div class="stat-value" id="stat-total">—</div></div>
+            <div class="stat-card"><div class="stat-label">Issued Today</div><div class="stat-value" id="stat-today">—</div></div>
+            <div class="stat-card"><div class="stat-label">PPE Items</div><div class="stat-value" id="stat-items">—</div></div>
+            <div class="stat-card"><div class="stat-label">Low Stock</div><div class="stat-value danger" id="stat-low">—</div></div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <div class="section-title">Low Stock Alerts</div>
+              <div id="low-stock-list"><div style="color:#9ca3af;font-size:14px;">Loading...</div></div>
+            </div>
+            <div>
+              <div class="section-title">Recent Issues</div>
+              <div id="recent-list" class="card"><div style="padding:16px;color:#9ca3af;font-size:14px;">Loading...</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ISSUE LOG TAB -->
+        <div class="tab-panel" id="tab-logs">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <span id="log-count" style="font-size:13px;color:#6b7280;"></span>
+            <button onclick="exportCSV()" class="btn btn-outline btn-sm">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+          </div>
+
+          <!-- Delete button-->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <span id="log-count" style="font-size:13px;color:#6b7280;"></span>
+            <div style="display:flex;gap:8px;">
+              <input type="date" id="delete-before" class="form-input" style="width:auto;font-size:13px;padding:6px 10px;" />
+              <button onclick="deleteOldLogs()" class="btn btn-outline btn-sm" style="color:#ef4444;border-color:#fecaca;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                Delete Before Date
+              </button>
+              <button onclick="exportCSV()" class="btn btn-outline btn-sm">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- Mobile list -->
+          <div id="log-mobile" class="md-hidden"></div>
+
+          <!-- Desktop table -->
+          <div id="log-desktop" class="table-wrap" style="display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Worker</th>
+                  <th>Department</th>
+                  <th>PPE Item</th>
+                  <th>Qty</th>
+                  <th>Issued By</th>
+                </tr>
+              </thead>
+              <tbody id="log-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- INVENTORY TAB -->
+        <div class="tab-panel" id="tab-inventory">
+          <div id="inventory-grid" class="grid-2" style="gap:12px;"></div>
+        </div>
+
+        <!-- MANAGE TAB -->
+        <div class="tab-panel" id="tab-manage">
+          <div class="grid-2">
+
+            <!-- Departments -->
+            <div class="card card-body">
+              <div class="card-title" style="margin-bottom:16px;">Departments</div>
+              <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <input type="text" id="new-dept" class="form-input" placeholder="Department name" style="flex:1;" />
+                <button onclick="addDepartment()" class="btn btn-primary btn-sm">Add</button>
+              </div>
+              <div id="dept-list"><div style="color:#9ca3af;font-size:14px;">Loading...</div></div>
+            </div>
+
+            <!-- PPE Items -->
+            <div class="card card-body">
+              <div class="card-title" style="margin-bottom:16px;">PPE Items</div>
+              <div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px;">
+                <input type="text" id="new-item-name" class="form-input" placeholder="Item name (e.g. Safety Helmet)" />
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <input type="text" id="new-item-unit" class="form-input" placeholder="Unit (pcs/pair)" />
+                  <input type="number" id="new-item-min" class="form-input" placeholder="Min stock" value="10" min="1" />
+                </div>
+                <input type="text" id="new-item-category" class="form-input" placeholder="Category (optional)" />
+                <button onclick="addPpeItem()" class="btn btn-primary btn-sm btn-full">Add Item</button>
+              </div>
+              <div id="ppe-item-list"><div style="color:#9ca3af;font-size:14px;">Loading...</div></div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    if (!Session.requireHse()) throw new Error('Not authorized');
+
+    let allLogs = [], allPpeItems = [], allStocks = [], allDepts = [];
+
+    // Detect desktop
+    const isDesktop = window.innerWidth >= 768;
+    if (isDesktop) {
+      document.getElementById('log-desktop').style.display = 'block';
+      document.getElementById('log-mobile').style.display = 'none';
+    }
+
+    initTabs('#main-tabs');
+
+    async function loadAll() {
+      try {
+        const [logs, ppeItems, stocks, depts] = await Promise.all([
+          API.get('/api/data?type=issue-logs'),
+          API.get('/api/data?type=ppe-items'),
+          API.get('/api/data?type=inventory'),
+          API.get('/api/data?type=departments'),
+        ]);
+        allLogs = logs;
+        allPpeItems = ppeItems;
+        allStocks = stocks;
+        allDepts = depts;
+        renderAll();
+      } catch(e) {
+        console.error(e);
+        showToast('Failed to load data.');
+      }
+    }
+
+    function renderAll() {
+      renderOverview();
+      renderLogs();
+      renderInventory();
+      renderManage();
+    }
+
+    function renderOverview() {
+      const today = new Date().toDateString();
+      const issuedToday = allLogs.filter(l => new Date(l.issued_at).toDateString() === today).length;
+      const stockMap = Object.fromEntries(allStocks.map(s => [s.ppe_item_id, s]));
+      const lowItems = allPpeItems.filter(item => {
+        const s = stockMap[item.id];
+        return s && s.quantity <= item.min_stock;
+      });
+
+      document.getElementById('stat-total').textContent = allLogs.length;
+      document.getElementById('stat-today').textContent = issuedToday;
+      document.getElementById('stat-items').textContent = allPpeItems.length;
+      document.getElementById('stat-low').textContent = lowItems.length;
+
+      if (lowItems.length > 0) {
+        const badge = document.getElementById('low-stock-badge');
+        badge.textContent = `${lowItems.length} low stock`;
+        badge.classList.remove('hidden');
+      }
+
+      // Low stock list
+      const lowList = document.getElementById('low-stock-list');
+      if (lowItems.length === 0) {
+        lowList.innerHTML = '<div style="color:#9ca3af;font-size:14px;">All items sufficiently stocked.</div>';
+      } else {
+        lowList.innerHTML = lowItems.map(item => {
+          const s = stockMap[item.id];
+          return `<div class="alert alert-danger" style="margin-bottom:8px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div><div style="font-weight:600;font-size:13px;">${item.name}</div><div style="font-size:12px;">${s.quantity} ${item.unit} left · min ${item.min_stock}</div></div>
+          </div>`;
+        }).join('');
+      }
+
+      // Recent logs
+      const recentList = document.getElementById('recent-list');
+      const recent = allLogs.slice(0, 8);
+      if (recent.length === 0) {
+        recentList.innerHTML = '<div style="padding:16px;color:#9ca3af;font-size:14px;">No issues recorded yet.</div>';
+      } else {
+        recentList.innerHTML = recent.map(log => `
+          <div class="list-item">
+            <div style="display:flex;justify-content:space-between;align-items:start;">
+              <div>
+                <div style="font-size:14px;font-weight:600;">${log.worker_name}</div>
+                <div style="font-size:12px;color:#6b7280;">${log.department_name ?? '—'} · ${log.ppe_item_name ?? '—'} · ${log.quantity_issued} ${log.ppe_item_unit ?? ''}</div>
+              </div>
+              <div style="font-size:12px;color:#9ca3af;white-space:nowrap;">${fmtTime(log.issued_at)}</div>
+            </div>
+          </div>`).join('');
+      }
+    }
+
+    function renderLogs() {
+      document.getElementById('log-count').textContent = `${allLogs.length} records`;
+
+      // Mobile cards
+      document.getElementById('log-mobile').innerHTML = allLogs.length === 0
+        ? '<div style="color:#9ca3af;font-size:14px;">No logs yet.</div>'
+        : allLogs.map(log => `
+          <div class="card" style="margin-bottom:8px;padding:14px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-weight:600;font-size:14px;">${log.worker_name}</span>
+              <span style="font-size:12px;color:#9ca3af;">${fmtDate(log.issued_at)}</span>
+            </div>
+            <div style="font-size:13px;color:#6b7280;">${log.department_name ?? '—'}</div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;">
+              <span style="font-size:13px;">${log.ppe_item_name ?? '—'}</span>
+              <span style="font-size:13px;font-weight:600;">${log.quantity_issued} ${log.ppe_item_unit ?? ''}</span>
+            </div>
+          </div>`).join('');
+
+      // Desktop table
+      document.getElementById('log-table-body').innerHTML = allLogs.map(log => `
+        <tr>
+          <td style="color:#6b7280;font-size:13px;">${fmtDate(log.issued_at)} ${fmtTime(log.issued_at)}</td>
+          <td style="font-weight:500;">${log.worker_name}</td>
+          <td style="color:#6b7280;">${log.department_name ?? '—'}</td>
+          <td>${log.ppe_item_name ?? '—'}</td>
+          <td>${log.quantity_issued} ${log.ppe_item_unit ?? ''}</td>
+          <td style="color:#9ca3af;">${log.issued_by_name ?? '—'}</td>
+        </tr>`).join('');
+    }
+
+    function renderInventory() {
+      const stockMap = Object.fromEntries(allStocks.map(s => [s.ppe_item_id, s.quantity]));
+      const grid = document.getElementById('inventory-grid');
+      if (allPpeItems.length === 0) {
+        grid.innerHTML = '<div style="color:#9ca3af;font-size:14px;">No PPE items yet. Add them in Manage tab.</div>';
+        return;
+      }
+      grid.innerHTML = allPpeItems.map(item => {
+        const qty = stockMap[item.id] ?? 0;
+        const isLow = qty <= item.min_stock;
+        const pct = Math.min(Math.round((qty / (item.min_stock * 3)) * 100), 100);
+        return `<div class="card" style="padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;">${item.name}</div>
+              <div style="font-size:12px;color:#9ca3af;">${item.category ? item.category + ' · ' : ''}min ${item.min_stock} ${item.unit}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:26px;font-weight:700;color:${isLow ? '#ef4444' : '#111827'}">${qty}</div>
+              <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">${isLow ? 'Low' : 'OK'}</span>
+            </div>
+          </div>
+          <div class="progress"><div class="progress-bar ${isLow ? 'low' : 'ok'}" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderManage() {
+      // Departments
+      document.getElementById('dept-list').innerHTML = allDepts.length === 0
+        ? '<div style="color:#9ca3af;font-size:14px;">No departments yet.</div>'
+        : allDepts.map(d => `
+          <div class="manage-row">
+            <span style="font-size:14px;">${d.name}</span>
+            <button class="icon-btn" onclick="deleteDept('${d.id}')">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>`).join('');
+
+      // PPE Items
+      const stockMap = Object.fromEntries(allStocks.map(s => [s.ppe_item_id, s.quantity]));
+      document.getElementById('ppe-item-list').innerHTML = allPpeItems.length === 0
+        ? '<div style="color:#9ca3af;font-size:14px;">No items yet.</div>'
+        : allPpeItems.map(item => `
+          <div class="manage-row">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+              <div style="font-size:12px;color:#9ca3af;">${item.unit} · min ${item.min_stock}</div>
+            </div>
+            <div class="stock-row">
+              <input type="number" min="0" class="stock-input" id="stock-${item.id}" placeholder="${stockMap[item.id] ?? 0}" />
+              <button class="btn btn-outline btn-sm" onclick="setStock('${item.id}')">Set</button>
+            </div>
+            <button class="icon-btn" onclick="deletePpeItem('${item.id}')">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>`).join('');
+    }
+
+    // Manage actions
+    async function addDepartment() {
+      const input = document.getElementById('new-dept');
+      const name = input.value.trim();
+      if (!name) return;
+      const res = await API.post('/api/manage', { action: 'add-department', name });
+      if (res.success) { input.value = ''; showToast('Department added'); loadAll(); }
+      else showToast(res.error || 'Failed');
+    }
+
+    async function deleteDept(id) {
+      if (!confirm('Delete this department?')) return;
+      const res = await API.post('/api/manage', { action: 'delete-department', id });
+      if (res.success) { showToast('Deleted'); loadAll(); }
+      else showToast(res.error || 'Failed');
+    }
+
+    async function addPpeItem() {
+      const name = document.getElementById('new-item-name').value.trim();
+      const unit = document.getElementById('new-item-unit').value.trim();
+      const min_stock = parseInt(document.getElementById('new-item-min').value) || 10;
+      const category = document.getElementById('new-item-category').value.trim();
+      if (!name || !unit) { showToast('Name and unit required'); return; }
+      const res = await API.post('/api/manage', { action: 'add-ppe-item', name, unit, min_stock, category });
+      if (res.success) {
+        document.getElementById('new-item-name').value = '';
+        document.getElementById('new-item-unit').value = '';
+        document.getElementById('new-item-category').value = '';
+        showToast('Item added'); loadAll();
+      } else showToast(res.error || 'Failed');
+    }
+
+    async function deletePpeItem(id) {
+      if (!confirm('Delete this PPE item?')) return;
+      const res = await API.post('/api/manage', { action: 'delete-ppe-item', id });
+      if (res.success) { showToast('Deleted'); loadAll(); }
+      else showToast(res.error || 'Failed');
+    }
+
+    async function setStock(itemId) {
+      const input = document.getElementById(`stock-${itemId}`);
+      const qty = parseInt(input.value);
+      if (isNaN(qty) || qty < 0) { showToast('Enter a valid quantity'); return; }
+      const res = await API.post('/api/manage', { action: 'set-stock', ppe_item_id: itemId, quantity: qty });
+      if (res.success) { input.value = ''; showToast('Stock updated'); loadAll(); }
+      else showToast(res.error || 'Failed');
+    }
+
+    // Export CSV
+    function exportCSV() {
+      const headers = ['Date', 'Time', 'Worker', 'Department', 'PPE Item', 'Qty', 'Unit', 'Issued By'];
+      const rows = allLogs.map(log => [
+        fmtDate(log.issued_at), fmtTime(log.issued_at),
+        log.worker_name, log.department_name ?? '',
+        log.ppe_item_name ?? '', log.quantity_issued,
+        log.ppe_item_unit ?? '', log.issued_by_name ?? ''
+      ]);
+      const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ppe-log-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    async function deleteOldLogs() {
+      const date = document.getElementById('delete-before').value;
+      if (!date) { showToast('Select a date first'); return; }
+      const count = allLogs.filter(l => new Date(l.issued_at) < new Date(date)).length;
+      if (count === 0) { showToast('No logs before that date'); return; }
+      if (!confirm(`Delete ${count} logs before ${date}? This cannot be undone.`)) return;
+      const res = await API.post('/api/manage', { action: 'delete-logs-before', date });
+      if (res.success) { showToast(`${count} logs deleted`); loadAll(); }
+      else showToast(res.error || 'Failed');
+    }
+
+    // Enter key for dept input
+    document.getElementById('new-dept').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addDepartment();
+    });
+
+    loadAll();
+
+  </script>
+</body>
+</html>

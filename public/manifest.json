@@ -1,0 +1,14 @@
+{
+  "name": "PPE Management System",
+  "short_name": "PPE System",
+  "description": "HSE PPE Issuance & Management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#111827",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.jpg", "sizes": "192x192", "type": "image/jpg" },
+    { "src": "/icon-512.jpg", "sizes": "512x512", "type": "image/jpg" }
+  ]
+}

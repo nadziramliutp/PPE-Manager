@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PPE Issuance — PPE System</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#111827" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="container header-inner">
+        <div>
+          <div class="header-title">PPE Issuance</div>
+          <div style="font-size:11px;color:#9ca3af;">Fill in all fields to submit</div>
+        </div>
+        <button onclick="Session.clear();window.location.href='/index.html'" class="btn btn-outline btn-sm">Exit</button>
+      </div>
+    </header>
+
+    <main class="container" style="padding-top:24px;padding-bottom:40px;max-width:560px;">
+      <div id="success-msg" class="hidden alert alert-success" style="margin-bottom:20px;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>PPE issued successfully!</span>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">New PPE Request</div>
+        </div>
+        <div class="card-body">
+          <form id="ppe-form" style="display:flex;flex-direction:column;gap:18px;">
+
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="worker-name" class="form-input" placeholder="Enter your full name" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Department</label>
+              <select id="department" class="form-select" required>
+                <option value="">Select department...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">PPE Item</label>
+              <select id="ppe-item" class="form-select" required>
+                <option value="">Select PPE item...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Quantity</label>
+              <input type="number" id="quantity" class="form-input" min="1" max="50" value="1" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Notes <span style="color:#9ca3af;font-weight:400;">(optional)</span></label>
+              <input type="text" id="notes" class="form-input" placeholder="e.g. replacement for damaged item" />
+            </div>
+
+            <div id="stock-warning" class="hidden alert alert-danger">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="stock-warning-text"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" id="submit-btn" style="padding:12px;">
+              Submit Request
+            </button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    if (!Session.requireWorker()) throw new Error('Not authorized');
+
+    let ppeItems = [];
+    let stockData = {};
+
+    async function loadData() {
+      try {
+        const [depts, items] = await Promise.all([
+          API.get('/api/data?type=departments'),
+          API.get('/api/data?type=ppe-items')
+        ]);
+
+        // Populate departments
+        const deptSelect = document.getElementById('department');
+        depts.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.id;
+          opt.textContent = d.name;
+          deptSelect.appendChild(opt);
+        });
+
+        // Populate PPE items
+        ppeItems = items;
+        const itemSelect = document.getElementById('ppe-item');
+        items.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = `${item.name} (${item.unit})`;
+          opt.dataset.stock = item.current_stock ?? 0;
+          opt.dataset.min = item.min_stock ?? 10;
+          itemSelect.appendChild(opt);
+        });
+      } catch (e) {
+        console.error('Failed to load data', e);
+      }
+    }
+
+    // Show stock warning when item selected
+    document.getElementById('ppe-item').addEventListener('change', function() {
+      const opt = this.options[this.selectedIndex];
+      const stock = parseInt(opt.dataset.stock ?? 0);
+      const min = parseInt(opt.dataset.min ?? 10);
+      const warning = document.getElementById('stock-warning');
+      const warningText = document.getElementById('stock-warning-text');
+
+      if (this.value && stock <= min) {
+        warningText.textContent = `Low stock: only ${stock} units remaining.`;
+        warning.classList.remove('hidden');
+      } else {
+        warning.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('ppe-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div>';
+
+      const data = {
+        worker_name: document.getElementById('worker-name').value.trim(),
+        department_id: document.getElementById('department').value,
+        ppe_item_id: document.getElementById('ppe-item').value,
+        quantity_issued: parseInt(document.getElementById('quantity').value),
+        notes: document.getElementById('notes').value.trim() || null,
+      };
+
+      try {
+        const res = await API.post('/api/submit-issue', data);
+        if (res.success) {
+          document.getElementById('success-msg').classList.remove('hidden');
+          this.reset();
+          document.getElementById('stock-warning').classList.add('hidden');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          // Reload to refresh stock
+          setTimeout(loadData, 500);
+        } else {
+          showToast(res.error || 'Failed to submit. Try again.');
+        }
+      } catch {
+        showToast('Connection error. Try again.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Request';
+      }
+    });
+
+    loadData();
+  </script>
+</body>
+</html>
