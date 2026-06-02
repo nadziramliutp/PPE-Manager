@@ -1,4 +1,4 @@
-const CACHE = 'ppe-v1';
+const CACHE = 'ppe-v2';
 const STATIC = [
   '/',
   '/index.html',
