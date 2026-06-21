@@ -60,6 +60,16 @@ export default async function handler(req, res) {
       }
 
       case 'delete-ppe-item': {
+        const { data: logs } = await supabase
+          .from('issue_logs')
+          .select('id')
+          .eq('ppe_item_id', body.id)
+          .limit(1);
+        
+        if (logs && logs.length > 0) {
+          return res.json({ success: false, error: 'Cannot delete — this item has issue history. Delete its logs first.' });
+        }
+
         await supabase.from('inventory_stocks').delete().eq('ppe_item_id', body.id);
         const { error } = await supabase.from('ppe_items').delete().eq('id', body.id);
         if (error) throw error;
